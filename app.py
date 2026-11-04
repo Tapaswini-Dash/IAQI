@@ -10,7 +10,7 @@ from tensorflow.keras.models import load_model
 app = FastAPI(title="Indoor Air Quality Forecasting API")
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "best_indoor_air_lstm_6feat.keras"
+MODEL_PATH = BASE_DIR / "best_indoor_air_lstm_6feat.h5"
 SCALER_PATH = BASE_DIR / "humidity_winner_scaler.pkl"
 
 model = load_model(MODEL_PATH)
