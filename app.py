@@ -1,11 +1,25 @@
 from pathlib import Path
 
 import joblib
-import numpy as np
+import numpy as npy
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import tensorflow as tf
+from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import load_model
+
+# --- MONKEY PATCH TO FIX KERAS 3 QUANTIZATION CONFIG ERROR ON RENDER ---
+old_init = Dense.__init__
+
+
+def new_init(self, *args, **kwargs):
+  kwargs.pop("quantization_config", None)
+  old_init(self, *args, **kwargs)
+
+
+Dense.__init__ = new_init
+# ------------------------------------------------------------------------
 
 app = FastAPI(title="Indoor Air Quality Forecasting API")
 
@@ -31,7 +45,6 @@ def predict(payload: SensorWindow):
     df_input = df_input.tail(60).copy()
 
     # --- RULE-BASED SAFETY CHECK ---
-    # Look at the very last (most recent) MQ135 sensor reading
     latest_mq135 = float(df_input["MQ135 Value"].iloc[-1])
     spike_detected = latest_mq135 > 300.0
 
@@ -69,7 +82,6 @@ def predict(payload: SensorWindow):
           "mq135_value": round(float(y_pred_original[0, step, 4]), 2),
       })
 
-    # Return the forecast along with the safety trigger status
     return {
         "status": "success",
         "safety_alert": spike_detected,
