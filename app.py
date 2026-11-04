@@ -1,33 +1,33 @@
 from pathlib import Path
 
 import joblib
-import numpy as npy
+import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import tensorflow as tf
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.models import load_model
-
-# --- MONKEY PATCH TO FIX KERAS 3 QUANTIZATION CONFIG ERROR ON RENDER ---
-old_init = Dense.__init__
-
-
-def new_init(self, *args, **kwargs):
-  kwargs.pop("quantization_config", None)
-  old_init(self, *args, **kwargs)
-
-
-Dense.__init__ = new_init
-# ------------------------------------------------------------------------
+from tensorflow.keras.layers import Dense, Dropout, Input, LSTM, Reshape
+from tensorflow.keras.models import Sequential
 
 app = FastAPI(title="Indoor Air Quality Forecasting API")
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "best_indoor_air_lstm_6feat.h5"
+WEIGHTS_PATH = BASE_DIR / "model_weights.weights.h5"
 SCALER_PATH = BASE_DIR / "humidity_winner_scaler.pkl"
 
-model = load_model(MODEL_PATH)
+# 1. Rebuild the exact model architecture in code
+model = Sequential([
+    Input(shape=(60, 6)),
+    LSTM(64, return_sequences=True),
+    Dropout(0.3),
+    LSTM(32, return_sequences=False),
+    Dense(32, activation="relu"),
+    Dense(90, activation="linear"),
+    Reshape((15, 6)),
+])
+
+# 2. Load the weights safely (bypasses all Keras version/quantization mismatch errors)
+model.load_weights(WEIGHTS_PATH)
 scaler = joblib.load(SCALER_PATH)
 
 
